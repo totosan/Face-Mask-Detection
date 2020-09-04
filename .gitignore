@@ -1,2 +1,4 @@
 # Python virtual environments
 venv
+pythonenv3.8
+__pycache__
