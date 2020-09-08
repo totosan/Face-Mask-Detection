@@ -8,7 +8,7 @@ if sys.version_info[0] < 3:#e.g python version <3
     import cv2
 else:
     import cv2
-    from cv2 import cv2
+
 # pylint: disable=E1101
 # pylint: disable=E0401
 # Disabling linting that is not supported by Pylint for C extensions such as OpenCV. See issue https://github.com/PyCQA/pylint/issues/1955 
@@ -94,6 +94,7 @@ class CameraCapture(object):
             self.imageServer.start()
 
     def __annotate(self, frame, response):
+        return
         AnnotationParserInstance = AnnotationParser()
         #TODO: Make the choice of the service configurable
         listOfRectanglesToDisplay = AnnotationParserInstance.getCV2RectanglesFromProcessingService1(response)
@@ -151,19 +152,26 @@ class CameraCapture(object):
                 if frameCounter == 1:
                     if not self.isWebcam:
                         print("Original frame size: " + str(int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))) + "x" + str(int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))))
-                        print("Frame rate (FPS): " + str(int(self.capture.get(cv2.CAP_PROP_FPS))))
+                        try:
+                            print("Frame rate (FPS): " + str(int(self.capture.get(cv2.CAP_PROP_FPS))))
+                        except:
+                            print("No FPS available")
                 print("Frame number: " + str(frameCounter))
                 print("Time to capture (+ straighten up) a frame: " + self.__displayTimeDifferenceInMs(time.time(), startCapture))
                 startPreProcessing = time.time()
             
             #Loop video
-            if not self.isWebcam:             
-                if frameCounter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
-                    if self.loopVideo: 
-                        frameCounter = 0
-                        self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    else:
-                        break
+            if not self.isWebcam:         
+                try:
+                    counter=self.capture.get(cv2.CAP_PROP_FRAME_COUNT)
+                    if frameCounter == counter:
+                        if self.loopVideo: 
+                            frameCounter = 0
+                            self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        else:
+                            break
+                except:
+                    print ("cam does not have a frame counter property")
 
             #Pre-process locally
             if self.nbOfPreprocessingSteps == 1 and self.convertToGray:
@@ -194,7 +202,7 @@ class CameraCapture(object):
                     startProcessingExternally = time.time()
 
                 #Send over HTTP for processing
-                response = self.__sendFrameForProcessing(encodedFrame)
+                #response = self.__sendFrameForProcessing(encodedFrame)
                 if self.verbose:
                     print("Time to process frame externally: " + self.__displayTimeDifferenceInMs(time.time(), startProcessingExternally))
                     startSendingToEdgeHub = time.time()
@@ -224,10 +232,13 @@ class CameraCapture(object):
                     print("Time to display frame: " + self.__displayTimeDifferenceInMs(time.time(), startEncodingForProcessing))
                 perfForOneFrameInMs = int((time.time()-startOverall) * 1000)
                 if not self.isWebcam:
-                    waitTimeBetweenFrames = max(int(1000 / self.capture.get(cv2.CAP_PROP_FPS))-perfForOneFrameInMs, 1)
-                    print("Wait time between frames :" + str(waitTimeBetweenFrames))
-                    if cv2.waitKey(waitTimeBetweenFrames) & 0xFF == ord('q'):
-                        break
+                    try:
+                        waitTimeBetweenFrames = max(int(1000 / self.capture.get(cv2.CAP_PROP_FPS))-perfForOneFrameInMs, 1)
+                        print("Wait time between frames :" + str(waitTimeBetweenFrames))
+                        if cv2.waitKey(waitTimeBetweenFrames) & 0xFF == ord('q'):
+                            break
+                    except:
+                        print("Cam has no Frame Counter!s")
 
             if self.verbose:
                 perfForOneFrameInMs = int((time.time()-startOverall) * 1000)

@@ -41,7 +41,7 @@ def main(
     try:
         print ( "\nPython %s\n" % sys.version )
         print ( "Camera Capture. Press Ctrl-C to exit." )
-        with CameraCapture(videoPath, imageProcessingEndpoint, imageProcessingParams, showVideo, verbose, loopVideo, convertToGray, resizeWidth, resizeHeight, annotate, send_to_Hub_callback) as cameraCapture:
+        with CameraCapture(videoPath, imageProcessingEndpoint, imageProcessingParams, showVideo, verbose, loopVideo, convertToGray, resizeWidth, resizeHeight, annotate, False) as cameraCapture:
             cameraCapture.start()
     except KeyboardInterrupt:
         print ( "Camera capture module stopped" )

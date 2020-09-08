@@ -6,6 +6,7 @@ import tornado.websocket
 import threading
 import base64
 import os
+#from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 
 class ImageStreamHandler(tornado.websocket.WebSocketHandler):
     def initialize(self, camera):
@@ -39,19 +40,23 @@ class ImageServer(threading.Thread):
         self.camera = cameraObj
 
     def run(self):
-        try:
-            asyncio.set_event_loop(asyncio.new_event_loop())
-
+        #try:
+            #asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+            loop = asyncio.new_event_loop()
+            loop = asyncio.set_event_loop(loop)
+            
             indexPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
+            print(indexPath)
             app = tornado.web.Application([
                 (r"/stream", ImageStreamHandler, {'camera': self.camera}),
                 (r"/(.*)", tornado.web.StaticFileHandler, {'path': indexPath, 'default_filename': 'index.html'})
             ])
+            print("created app for server with port:"+ str(self.port))
             app.listen(self.port)
             print ('ImageServer::Started.')
             tornado.ioloop.IOLoop.current().start()
-        except Exception as e:
-            print('ImageServer::exited run loop. Exception - '+ str(e))
+        #except Exception as e:
+        #    print('ImageServer::exited run loop. Exception - '+ str(e))
 
     def close(self):
         print ('ImageServer::Closed.')
