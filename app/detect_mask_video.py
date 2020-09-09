@@ -134,14 +134,5 @@ while True:
 			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
 		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
-	# show the output frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
 
-	# if the `q` key was pressed, break from the loop
-	if key == ord("q"):
-		break
-
-# do a bit of cleanup
-cv2.destroyAllWindows()
 vs.stop()

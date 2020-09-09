@@ -1,11 +1,15 @@
 from flask import Flask, render_template, Response
+import imutils
 import cv2
+from MaskDetector import DetectMask
 
 app = Flask(__name__)
+detector = DetectMask()
+detector.LoadNet()
 
-#camera = cv2.VideoCapture(1)  # use 0 for web camera
+camera = cv2.VideoCapture(1)  # use 0 for web camera
 #  for cctv camera use rtsp://username:password@ip_address:554/user=username_password='password'_channel=channel_number_stream=0.sdp' instead of camera
-camera = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
+#camera = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
 def gen_frames():  # generate frame by frame from camera
     while True:
         # Capture frame-by-frame
@@ -13,11 +17,16 @@ def gen_frames():  # generate frame by frame from camera
         if not success:
             break
         else:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
 
+            frame = imutils.resize(frame, width=400)
+            resultframe = detector.Detect(frame)
+            try:
+                ret, buffer = cv2.imencode('.jpg', resultframe)
+                resultframe = buffer.tobytes()
+                yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + resultframe + b'\r\n')  # concat frame one by one and show result
+            except Exception as e:
+                print("Exception - " + str(e))
 
 @app.route('/video_feed')
 def video_feed():
