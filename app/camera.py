@@ -1,11 +1,11 @@
 from flask import Flask, render_template, Response
-import imutils
+#import imutils
 import cv2
 from MaskDetector import DetectMask
 
 app = Flask(__name__)
 detector = DetectMask()
-detector.LoadNet()
+#detector.LoadNet()
 
 camera = cv2.VideoCapture(1)  # use 0 for web camera
 #  for cctv camera use rtsp://username:password@ip_address:554/user=username_password='password'_channel=channel_number_stream=0.sdp' instead of camera
@@ -18,7 +18,7 @@ def gen_frames():  # generate frame by frame from camera
             break
         else:
 
-            frame = imutils.resize(frame, width=400)
+            #frame = imutils.resize(frame, width=300)
             resultframe = detector.Detect(frame)
             try:
                 ret, buffer = cv2.imencode('.jpg', resultframe)

@@ -81,6 +81,7 @@ def mask_image():
 
 			# pass the face through the model to determine if the face
 			# has a mask or not
+			print("Type of face:" + str(type(face)))
 			(mask, withoutMask) = model.predict(face)[0]
 
 			# determine the class label and color we'll use to draw

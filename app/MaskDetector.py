@@ -1,15 +1,18 @@
-# USAGE
-# python detect_mask_image.py --image images/pic1.jpeg
-
 # import the necessary packages
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
+from tensorflow.python.keras.backend import set_session
+import tensorflow as tf 
 import numpy as np
-import argparse
 import cv2
+import imutils
 import os
 
+_Graph=None
+_Net=None
+_Model=None
+_Session=None
 
 class DetectMask():
     def __init__(self,
@@ -19,30 +22,36 @@ class DetectMask():
         self.PathToFaceDetectorFolder = pathFaceDetector
         self.ModelFile = model
         self.Confidence = confidence
-
-    def LoadNet(self):
+  
         # load our serialized face detector model from disk
         print("[INFO] loading face detector model...")
         prototxtPath = os.path.sep.join(
             [self.PathToFaceDetectorFolder, "deploy.prototxt"])
         weightsPath = os.path.sep.join(
             [self.PathToFaceDetectorFolder, "res10_300x300_ssd_iter_140000.caffemodel"])
-        self.Net = cv2.dnn.readNet(prototxtPath, weightsPath)
+        global _Net
+        _Net = cv2.dnn.readNet(prototxtPath, weightsPath)
 
         # load the face mask detector model from disk
         print("[INFO] loading face mask detector model...")
-        self.Model = load_model(self.ModelFile)
-        self.Model._make_predict_function()
-        
-        print("Model file:" + self.ModelFile)
-        print("Path to Folder:" + self.PathToFaceDetectorFolder)
-        print("Confidence:" + str(self.Confidence))
+        tfConfig = tf.ConfigProto()
+        global _Session
+        _Session = tf.Session(config=tfConfig)
+        global _Graph
+        _Graph = tf.get_default_graph()
+        set_session(_Session)
+        global _Model    
+        _Model = load_model(self.ModelFile)
 
-    def Detect(self, frame):
+
+    def Detect(self, frame):  
+        #resize for performance
+        frame = imutils.resize(frame, width=300)
+        
         # load the input image from disk, clone it, and grab the image spatial
         # dimensions
         (h, w) = frame.shape[:2]
-
+                
         # construct a blob from the image
         blob = cv2.dnn.blobFromImage(
             frame, 1.0, (300, 300), (104.0, 177.0, 123.0))
@@ -50,8 +59,9 @@ class DetectMask():
         # pass the blob through the network and obtain the face detections
         print("[INFO] computing face detections...")
 
-        self.Net.setInput(blob)
-        detections = self.Net.forward()
+        global _Net
+        _Net.setInput(blob)
+        detections = _Net.forward()
 
         # loop over the detections
         for i in range(0, detections.shape[2]):
@@ -81,12 +91,15 @@ class DetectMask():
                 face = img_to_array(face)
                 face = preprocess_input(face)
                 face = np.expand_dims(face, axis=0)
-                cv2.rectangle(frame, (startX, startY), (endX, endY), (128,10,10), 2)
+                #cv2.rectangle(frame, (startX, startY), (endX, endY), (128,10,10), 2)
                 
                 if True:
                     # pass the face through the model to determine if the face
                     # has a mask or not
-                    (mask, withoutMask) = self.Model.predict(face)[0]
+                    global _Graph, _Model, _Session
+                    with _Graph.as_default():
+                        set_session(_Session)
+                        (mask, withoutMask) = _Model.predict(face)[0]
 
                     # determine the class label and color we'll use to draw
                     # the bounding box and text
