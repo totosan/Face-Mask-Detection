@@ -37,7 +37,7 @@ args = vars(ap.parse_args())
 # and batch size
 INIT_LR = 1e-4
 EPOCHS = 20
-BS = 32
+BS = 8
 
 # grab the list of images in our dataset directory, then initialize
 # the list of data (i.e., images) and class images
@@ -135,7 +135,7 @@ print(classification_report(testY.argmax(axis=1), predIdxs,
 
 # serialize the model to disk
 print("[INFO] saving mask detector model...")
-model.save(args["model"], save_format="h5")
+model.save(args["model"])
 
 # plot the training loss and accuracy
 N = EPOCHS

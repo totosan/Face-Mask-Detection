@@ -17,7 +17,7 @@ _Session=None
 class DetectMask():
     def __init__(self,
                  pathFaceDetector='face_detector',
-                 model='mask_detector.model',
+                 model='mask_detect.sv',
                  confidence=0.5):
         self.PathToFaceDetectorFolder = pathFaceDetector
         self.ModelFile = model
