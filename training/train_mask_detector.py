@@ -135,7 +135,7 @@ print(classification_report(testY.argmax(axis=1), predIdxs,
 
 # serialize the model to disk
 print("[INFO] saving mask detector model...")
-model.save(args["model"])
+model.save(args["model"], save_format="tf")
 
 # plot the training loss and accuracy
 N = EPOCHS

@@ -8,7 +8,7 @@ import tensorflow.contrib.tensorrt as trt
 tf.keras.backend.clear_session()
 
 save_pb_dir = '.'
-model_fname = '.model/mask_detect.sv'
+model_fname = 'mask_detector.model'
 
 
 def freeze_graph(graph, session, output, save_pb_dir='.', save_pb_name='frozen_model.pb', save_pb_as_text=False):
