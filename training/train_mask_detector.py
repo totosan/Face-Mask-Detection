@@ -37,7 +37,7 @@ args = vars(ap.parse_args())
 # and batch size
 INIT_LR = 1e-4
 EPOCHS = 20
-BS = 8
+BS = 16
 
 # grab the list of images in our dataset directory, then initialize
 # the list of data (i.e., images) and class images
