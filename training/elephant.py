@@ -1,12 +1,15 @@
 
 from tensorflow.python.compiler.tensorrt import trt_convert as trt
+from tensorflow.python.tools import freeze_graph
 import tensorflow as tf
 import numpy as np
 import time
+import os
 
+saved_model_dir = 'mobilenet_v2'
 saved_model_dir_trt = 'mobilenet_v2.trt'
 
-
+## HELPER s
 def get_elephant_x():
     img = tf.keras.preprocessing.image.load_img(
         'elephant.jpg', target_size=(224, 224))
@@ -14,6 +17,7 @@ def get_elephant_x():
     x = np.expand_dims(x, axis=0)
     x = tf.keras.applications.mobilenet_v2.preprocess_input(x)
     return x
+
 
 def time_my_model(model, data):
     times = []
@@ -41,13 +45,83 @@ def time_trt_model():
     fps = 1 / mean_delta
     print('average(sec):{:.2f},fps:{:.2f}'.format(mean_delta, fps))
 
+# describing saved Model GraphDef
+def describe_graph(graph_def, show_nodes=False):
+    print('Input Feature Nodes: {}'.format(
+        [node.name for node in graph_def.node if node.op == 'Placeholder']))
+    print('')
+    print('Unused Nodes: {}'.format(
+        [node.name for node in graph_def.node if 'unused'  in node.name]))
+    print('')
+    print('Output Nodes: {}'.format( 
+        [node.name for node in graph_def.node if (
+            'predictions' in node.name or 'softmax' in node.name)]))
+    print('')
+    print('Quantization Nodes: {}'.format(
+        [node.name for node in graph_def.node if 'quant' in node.name]))
+    print('')
+    print('Constant Count: {}'.format(
+        len([node for node in graph_def.node if node.op=='Const'])))
+    print('')
+    print('Variable Count: {}'.format(
+        len([node for node in graph_def.node if 'Variable' in node.op])))
+    print('')
+    print('Identity Count: {}'.format(
+        len([node for node in graph_def.node if node.op=='Identity'])))
+    print('', 'Total nodes: {}'.format(len(graph_def.node)), '')
 
+    if show_nodes==True:
+        for node in graph_def.node:
+            print('Op:{} - Name: {}'.format(node.op, node.name))
+
+def get_size(model_dir, model_file='saved_model.pb'):
+    model_file_path = os.path.join(model_dir, model_file)
+    print(model_file_path, '')
+    pb_size = os.path.getsize(model_file_path)
+    variables_size = 0
+    if os.path.exists(os.path.join(model_dir,'variables/variables.data-00000-of-00001')):
+        variables_size = os.path.getsize(os.path.join(
+            model_dir,'variables/variables.data-00000-of-00001'))
+        variables_size += os.path.getsize(os.path.join(
+            model_dir,'variables/variables.index'))
+    print('Model size: {} KB'.format(round(pb_size/(1024.0),3)))
+    print('Variables size: {} KB'.format(round( variables_size/(1024.0),3)))
+    print('Total Size: {} KB'.format(round((pb_size + variables_size)/(1024.0),3)))
+
+## END Helpers ------------------------------------------------------------------
+
+def get_inOut_of_stdModel():
+    mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
+    describe_graph(mobilenet_v2.graph_def)
+    
 def predict_elephant_std():
-    #mobilenet_v2 = tf.keras.applications.MobileNetV2(weights='imagenet')
-    #mobilenet_v2.save('mobilenet_v2', save_format="tf")
-    mobilenet_v2 = tf.keras.models.load_model('mobilenet_v2')
+    if not os.path.exists(saved_model_dir):
+        mobilenet_v2 = tf.keras.applications.MobileNetV2(weights='imagenet')
+        mobilenet_v2.save(saved_model_dir, save_format="tf")
+    else:
+        mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
     x = get_elephant_x()
     time_my_model(mobilenet_v2, x)
+
+def freeze_model(saved_model_dir, output_node_names, output_filename):
+    output_graph_filename = os.path.join(saved_model_dir, output_filename)
+    initializer_nodes = ''
+    freeze_graph.freeze_graph(
+        input_saved_model_dir=saved_model_dir,
+        output_graph=output_graph_filename,
+        saved_model_tags = tf.saved_model.SERVING,
+        output_node_names=output_node_names,
+        initializer_nodes=initializer_nodes,
+        input_graph=None,
+        input_saver=False,
+        input_binary=False,
+        input_checkpoint=None,
+        restore_op_name=None,
+        filename_tensor_name=None,
+        clear_devices=False,
+        input_meta_graph=False,
+    )
+    print('graph freezed!')
 
 
 def convert_trt():
@@ -56,19 +130,24 @@ def convert_trt():
         is_dynamic_op=True)
 
     converter = trt.TrtGraphConverterV2(
-        input_saved_model_dir='mobilenet_v2',
+        input_saved_model_dir=saved_model_dir,
         conversion_params=params)
     converter.convert()
     converter.save(saved_model_dir_trt)
-
-
+    
+    
+# Loading the TensorRT Model
 def predict_elephant_trt():
     with tf.Session() as sess:
         root = tf.saved_model.loader.load(
             sess,
             [tf.saved_model.SERVING],
             saved_model_dir_trt)
+            #saved_model_dir)
 
+        describe_graph(root.graph_def, False)
+
+        return
         inputs_mapping = dict(root.signature_def['serving_default'].inputs)
         outputs_mapping = dict(root.signature_def['serving_default'].outputs)
 
@@ -83,7 +162,7 @@ def predict_elephant_trt():
         
         output = sess.run(output_tensor,
                           feed_dict={input_tensor: x})
-        
+
         return
         # Gather the ImageNet labels first and prepare them
         labels_path = tf.keras.utils.get_file(
@@ -100,4 +179,11 @@ if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution()
     print('Using Tensorflow version: {0}'.format(tf.version.VERSION))
     print(tf.executing_eagerly())
-    predict_elephant_trt()
+
+    if False:
+        predict_elephant_std()
+        print('Converting to TRT')
+        convert_trt()
+    else:
+        mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
+        predict_elephant_trt()
