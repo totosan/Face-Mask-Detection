@@ -4,3 +4,4 @@ pythonenv3.8
 __pycache__
 wheel/**
 .env
+.log

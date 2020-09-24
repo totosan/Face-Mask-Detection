@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
+import keras2frozenModel as kfm
 
 saved_model_dir = 'mask_detector.model'
 saved_model_dir_trt = saved_model_dir + '.trt'
@@ -95,15 +96,18 @@ def get_inOut_of_stdModel():
 
 
 def predict_mask_std():
-    with tf.Session() as sess:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    config.gpu_options.per_process_gpu_memory_fraction = 0.4
+    with tf.Session(config=config) as sess:
         root = tf.saved_model.loader.load(
             sess,
             tags=[tf.saved_model.SERVING],
             export_dir=saved_model_dir)
-
+        
         describe_graph(root.graph_def, False)
-        x = get_Mask_x()
-        time_my_model(root, x)
+        #x = get_Mask_x()
+        #time_my_model(root, x)
 
 
 def freeze_model(saved_model_dir, output_node_names, output_filename):
@@ -141,53 +145,52 @@ def convert_trt():
 
 # Loading the TensorRT Model
 def predict_mask_trt():
-    with tf.Session() as sess:
+    print("Do Config for GPU")
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    config.gpu_options.per_process_gpu_memory_fraction = 0.4    
+    print("Do sess.run...")
+    with tf.Session(config=config) as sess:
         root = tf.saved_model.loader.load(
             sess,
             [tf.saved_model.SERVING],
             saved_model_dir_trt)
 
-        describe_graph(root.graph_def, False)
+        describe_graph(root.graph_def, True)
 
-        return
         inputs_mapping = dict(root.signature_def['serving_default'].inputs)
         outputs_mapping = dict(root.signature_def['serving_default'].outputs)
 
         print("inputMappings", inputs_mapping)
         print("outpuMappings", outputs_mapping)
+        
         ops = sess.graph.get_operations()
-        input_tensor = sess.graph.get_tensor_by_name(
-            'serving_default_input_1:0')
+        input_tensor = sess.graph.get_tensor_by_name('serving_default_input_1:0')
         output_tensor = sess.graph.get_tensor_by_name('PartitionedCall:0')
+        
         print("input_tensor", input_tensor)
         print("output_tensor", output_tensor)
+        
         x = get_Mask_x()
 
         output = sess.run(output_tensor,
                           feed_dict={input_tensor: x})
-
+        print(output)
         return
-        # Gather the ImageNet labels first and prepare them
-        labels_path = tf.keras.utils.get_file(
-            'ImageNetLabels.txt', 'https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt')
-        imagenet_labels = np.array(open(labels_path).read().splitlines())
-
-        # Perform inference
-        labeling = concrete_func(tf.constant(x.astype('float32')))
-        activations = tf.nn.softmax(labeling['predictions'])
-        imagenet_labels[np.argsort(activations)[0, ::-1][:5]+1]
 
 
 if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution()
     print('Using Tensorflow version: {0}'.format(tf.version.VERSION))
-    print(' Executing eagerly: {}', tf.executing_eagerly())
+    print(' Executing eagerly:', tf.executing_eagerly())
 
-    step = 1
+    step = 3
     if step == 1:
         predict_mask_std()
-        #print('Converting to TRT')
-        # convert_trt()
+    elif step==2:
+        #freeze_model(saved_model_dir,"tensorflow/serving/predict",'frozen_model.pb')
+        print('Converting to TRT')
+        convert_trt()
     else:
-        mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
+        #mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
         predict_mask_trt()
