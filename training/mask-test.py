@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
+import keras2frozenModel
 
 saved_model_dir = 'mask_detector.model'
 saved_model_dir_trt = saved_model_dir + '.trt'
@@ -14,7 +15,7 @@ saved_model_dir_trt = saved_model_dir + '.trt'
 
 def get_Mask_x():
     img = tf.keras.preprocessing.image.load_img(
-        './testimage/withMask.jpg', target_size=(224, 224))
+        './testimage/NoMask-training.jpg', target_size=(224, 224))
     x = tf.keras.preprocessing.image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = tf.keras.applications.mobilenet_v2.preprocess_input(x)
@@ -185,9 +186,9 @@ if __name__ == "__main__":
 
     step = 1
     if step == 1:
-        predict_mask_std()
+        #predict_mask_std()
         #print('Converting to TRT')
-        # convert_trt()
+        convert_trt()
     else:
         mobilenet_v2 = tf.keras.models.load_model(saved_model_dir)
         predict_mask_trt()
