@@ -5,11 +5,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-<<<<<<< HEAD
-import keras2frozenModel
-=======
-import keras2frozenModel as kfm
->>>>>>> ae8dd2cb6f5593103b5e7564ba783d24a0b2a913
+
 
 saved_model_dir = 'mask_detector.model'
 saved_model_dir_trt = saved_model_dir + '.trt'
