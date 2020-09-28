@@ -22,6 +22,9 @@ class DetectMask():
         self.PathToFaceDetectorFolder = pathFaceDetector
         self.ModelFile = model
         self.Confidence = confidence
+
+
+    def worker(self, input_q, output_q):
   
         # load our serialized face detector model from disk
         print("[INFO] loading face detector model...")
@@ -43,8 +46,17 @@ class DetectMask():
         global _Model    
         _Model = load_model(self.ModelFile)
 
+        while True:
+            frame = input_q.get()
+            # Check frame object is a 2-D array (video) or 1-D (webcam)
+            if len(frame) == 2:
+                frame_rgb = cv2.cvtColor(frame[1], cv2.COLOR_BGR2RGB)
+                output_q.put((frame[0], self.Detect(frame_rgb, _Net, _Session, _Graph, _Model)))
+            else:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                output_q.put(self.Detect(frame_rgb, _Net, _Session, _Graph, _Model))
 
-    def Detect(self, frame):  
+    def Detect(self, frame, faceNet, tfSess, tfGraph, tfModel):  
         #resize for performance
         frame = imutils.resize(frame, width=300)
         
@@ -59,20 +71,19 @@ class DetectMask():
         # pass the blob through the network and obtain the face detections
         print("[INFO] computing face detections...")
 
-        global _Net
-        _Net.setInput(blob)
-        detections = _Net.forward()
+        faceNet.setInput(blob)
+        detections = faceNet.forward()
 
         # loop over the detections
         for i in range(0, detections.shape[2]):
             # extract the confidence (i.e., probability) associated with
             # the detection
             confidence = detections[0, 0, i, 2]
-            print("Found detection with confidence " + str(confidence))
             
             # filter out weak detections by ensuring the confidence is
             # greater than the minimum confidence
             if confidence > self.Confidence:
+                print("Found detection with confidence " + str(confidence))
                 # compute the (x, y)-coordinates of the bounding box for
                 # the object
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
@@ -96,11 +107,10 @@ class DetectMask():
                 if True:
                     # pass the face through the model to determine if the face
                     # has a mask or not
-                    global _Graph, _Model, _Session
-                    with _Graph.as_default():
-                        set_session(_Session)
-                        (mask, withoutMask) = _Model.predict(face)[0]
-
+                    with tfGraph.as_default():
+                        set_session(tfSess)
+                        (mask, withoutMask) = tfModel.predict(face)[0]
+                    
                     # determine the class label and color we'll use to draw
                     # the bounding box and text
                     label = "Mask" if mask > withoutMask else "No Mask"
@@ -110,6 +120,7 @@ class DetectMask():
                     label = "{}: {:.2f}%".format(
                         label, max(mask, withoutMask) * 100)
 
+                    print(label)
                     # display the label and bounding box rectangle on the output
                     # frame
                     cv2.putText(frame, label, (startX, startY - 10),
