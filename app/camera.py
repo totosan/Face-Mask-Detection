@@ -7,26 +7,30 @@ app = Flask(__name__)
 detector = DetectMask()
 #detector.LoadNet()
 
-camera = cv2.VideoCapture(0)  # use 0 for web camera
+camera = cv2.VideoCapture('MaskVideo.m4v')  # use 0 for web camera
 #  for cctv camera use rtsp://username:password@ip_address:554/user=username_password='password'_channel=channel_number_stream=0.sdp' instead of camera
 #camera = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
 def gen_frames():  # generate frame by frame from camera
     while True:
-        # Capture frame-by-frame
-        success, frame = camera.read()  # read the camera frame
-        if not success:
-            break
-        else:
+        try:
+            # Capture frame-by-frame
+            success, frame = camera.read()  # read the camera frame
+            if not success:
+                print('No success')
+                break
+            else:
 
-            #frame = imutils.resize(frame, width=300)
-            resultframe = detector.Detect(frame)
-            try:
-                ret, buffer = cv2.imencode('.jpg', resultframe)
-                resultframe = buffer.tobytes()
-                yield (b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n\r\n' + resultframe + b'\r\n')  # concat frame one by one and show result
-            except Exception as e:
-                print("Exception - " + str(e))
+                #frame = imutils.resize(frame, width=300)
+                resultframe = detector.Detect(frame)
+                try:
+                    ret, buffer = cv2.imencode('.jpg', resultframe)
+                    resultframe = buffer.tobytes()
+                    yield (b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n' + resultframe + b'\r\n')  # concat frame one by one and show result
+                except Exception as e:
+                    print("Exception - " + str(e))
+        except Exception as ex:
+            print('Video Read Exception: ',ex.message)
 
 @app.route('/video_feed')
 def video_feed():

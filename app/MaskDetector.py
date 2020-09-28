@@ -114,4 +114,4 @@ class DetectMask():
                     # frame
                     cv2.putText(frame, label, (startX, startY - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
-                return frame
+        return frame
