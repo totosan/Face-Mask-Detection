@@ -9,52 +9,53 @@ import cv2
 import imutils
 import os
 
-_Graph=None
-_Net=None
-_Model=None
-_Session=None
-
 class DetectMask():
     def __init__(self,
                  pathFaceDetector='face_detector',
+                 #model='mask_detector.model',
                  model='mask_detect.sv',
                  confidence=0.5):
+        if "app" in os.getcwd():
+            self.cwd="."
+        else:
+            self.cwd=os.path.join(os.getcwd(),"app")
         self.PathToFaceDetectorFolder = pathFaceDetector
-        self.ModelFile = model
+        self.ModelFile = os.path.join(self.cwd, model)
         self.Confidence = confidence
 
-
-    def worker(self, input_q, output_q):
-  
         # load our serialized face detector model from disk
         print("[INFO] loading face detector model...")
         prototxtPath = os.path.sep.join(
-            [self.PathToFaceDetectorFolder, "deploy.prototxt"])
+            [self.cwd,self.PathToFaceDetectorFolder, "deploy.prototxt"])
         weightsPath = os.path.sep.join(
-            [self.PathToFaceDetectorFolder, "res10_300x300_ssd_iter_140000.caffemodel"])
-        global _Net
-        _Net = cv2.dnn.readNet(prototxtPath, weightsPath)
-
+            [self.cwd,self.PathToFaceDetectorFolder, "res10_300x300_ssd_iter_140000.caffemodel"])
+        
+        try:
+            self._Net = cv2.dnn.readNet(prototxtPath, weightsPath)
+        except Exception as ex:
+            print(ex)
+            
         # load the face mask detector model from disk
         print("[INFO] loading face mask detector model...")
         tfConfig = tf.ConfigProto()
-        global _Session
-        _Session = tf.Session(config=tfConfig)
-        global _Graph
-        _Graph = tf.get_default_graph()
-        set_session(_Session)
-        global _Model    
-        _Model = load_model(self.ModelFile)
+        self._Session = tf.Session(config=tfConfig)
+        self._Graph = tf.get_default_graph()
+        set_session(self._Session)
+        self._Model = load_model(self.ModelFile)
 
+
+    def worker(self, input_q, output_q):
+        
         while True:
             frame = input_q.get()
             # Check frame object is a 2-D array (video) or 1-D (webcam)
             if len(frame) == 2:
                 frame_rgb = cv2.cvtColor(frame[1], cv2.COLOR_BGR2RGB)
-                output_q.put((frame[0], self.Detect(frame_rgb, _Net, _Session, _Graph, _Model)))
+                output_q.put((frame[0], frame_rgb))
+                #output_q.put((frame[0], self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model)))
             else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                output_q.put(self.Detect(frame_rgb, _Net, _Session, _Graph, _Model))
+                output_q.put(self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model))
 
     def Detect(self, frame, faceNet, tfSess, tfGraph, tfModel):  
         #resize for performance
@@ -104,7 +105,7 @@ class DetectMask():
                 face = np.expand_dims(face, axis=0)
                 #cv2.rectangle(frame, (startX, startY), (endX, endY), (128,10,10), 2)
                 
-                if True:
+                if False:
                     # pass the face through the model to determine if the face
                     # has a mask or not
                     with tfGraph.as_default():

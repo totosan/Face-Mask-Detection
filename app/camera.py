@@ -27,8 +27,9 @@ output_pq = PriorityQueue(maxsize=3*appConfig.QueueSize)
 pool = Pool(appConfig.NumWorkers, detector.worker, (input_q,output_q))
 
 #  for cctv camera use rtsp://username:password@ip_address:554/user=username_password='password'_channel=channel_number_stream=0.sdp' instead of camera
-#camera = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
-videoStream = cv2.VideoCapture('MaskVideo.m4v')  # use 0 for web camera
+#videoStream = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
+#videoStream = cv2.VideoCapture(0)  # use 0 for web camera
+videoStream = cv2.VideoCapture('/workspaces/Face-Mask-Detection/app/MaskVideo.m4v')  # use 0 for web camera
 
 def gen_frames():  # generate frame by frame from camera
     countReadFrame = 0
@@ -105,4 +106,4 @@ def index():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0',port=5001)
