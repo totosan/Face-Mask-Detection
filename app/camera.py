@@ -30,6 +30,7 @@ pool = Pool(appConfig.NumWorkers, detector.worker, (input_q,output_q))
 #videoStream = cv2.VideoCapture("rtsp://admin:845357@192.168.1.14/live/profile.0")
 #videoStream = cv2.VideoCapture(0)  # use 0 for web camera
 videoStream = cv2.VideoCapture('/workspaces/Face-Mask-Detection/app/MaskVideo.m4v')  # use 0 for web camera
+fps = FPS().start()
 
 def gen_frames():  # generate frame by frame from camera
     countReadFrame = 0
@@ -72,14 +73,19 @@ def gen_frames():  # generate frame by frame from camera
                         try:
                             ret, buffer = cv2.imencode('.jpg', output_rgb)
                             resultframe = buffer.tobytes()
+#                            cv2.putText(resultframe, fps.fps(), (10, 10 - 10),
+#                                                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0,128,0), 2)
                             yield (b'--frame\r\n'
-                                b'Content-Type: image/jpeg\r\n\r\n' + output_rgb + b'\r\n')  # concat frame one by one and show result
+                                b'Content-Type: image/jpeg\r\n\r\n' + resultframe + b'\r\n')  # concat frame one by one and show result
                         except Exception as e:
                             print("Exception - " + str(e))
-
+                        fps.update()
                         if firstUsedFrame:
                             print(" --> Start using recovered frame (displaying and/or writing).\n")
                             firstUsedFrame = False
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
             print("Read frames: %-3i %% -- Write frame: %-3i %%" % (int(countReadFrame/nFrame * 100), int(countWriteFrame/nFrame * 100)), end ='\r')
             if((not success) & input_q.empty() & output_q.empty() & output_pq.empty()):
@@ -88,7 +94,8 @@ def gen_frames():  # generate frame by frame from camera
 #                resultframe = detector.Detect(frame)
         except Exception as ex:
             print('Video Read Exception: ',ex.message)
-
+    
+    fps.stop()
     pool.terminate()
     videoStream.release()
 

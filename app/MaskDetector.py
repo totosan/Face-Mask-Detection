@@ -35,24 +35,23 @@ class DetectMask():
         except Exception as ex:
             print(ex)
             
+
+
+
+    def worker(self, input_q, output_q):
         # load the face mask detector model from disk
         print("[INFO] loading face mask detector model...")
         tfConfig = tf.ConfigProto()
         self._Session = tf.Session(config=tfConfig)
         self._Graph = tf.get_default_graph()
         set_session(self._Session)
-        self._Model = load_model(self.ModelFile)
-
-
-    def worker(self, input_q, output_q):
-        
+        self._Model = load_model(self.ModelFile)        
         while True:
             frame = input_q.get()
             # Check frame object is a 2-D array (video) or 1-D (webcam)
             if len(frame) == 2:
                 frame_rgb = cv2.cvtColor(frame[1], cv2.COLOR_BGR2RGB)
-                output_q.put((frame[0], frame_rgb))
-                #output_q.put((frame[0], self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model)))
+                output_q.put((frame[0], self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model)))
             else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 output_q.put(self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model))
@@ -105,7 +104,7 @@ class DetectMask():
                 face = np.expand_dims(face, axis=0)
                 #cv2.rectangle(frame, (startX, startY), (endX, endY), (128,10,10), 2)
                 
-                if False:
+                if True:
                     # pass the face through the model to determine if the face
                     # has a mask or not
                     with tfGraph.as_default():
