@@ -8,13 +8,15 @@ import numpy as np
 import cv2
 import imutils
 import os
+import signal
 
 class DetectMask():
     def __init__(self,
                  pathFaceDetector='face_detector',
                  #model='mask_detector.model',
                  model='mask_detect.sv',
-                 confidence=0.5):
+                 confidence=0.5, 
+                 cancelation=None):
         if "app" in os.getcwd():
             self.cwd="."
         else:
@@ -22,7 +24,8 @@ class DetectMask():
         self.PathToFaceDetectorFolder = pathFaceDetector
         self.ModelFile = os.path.join(self.cwd, model)
         self.Confidence = confidence
-
+        self.CancelEvent=cancelation
+        
         # load our serialized face detector model from disk
         print("[INFO] loading face detector model...")
         prototxtPath = os.path.sep.join(
@@ -34,19 +37,23 @@ class DetectMask():
             self._Net = cv2.dnn.readNet(prototxtPath, weightsPath)
         except Exception as ex:
             print(ex)
-            
+        # load the face mask detector model from disk
+        print("[INFO] loading face mask detector model...")
+        tfConfig = tf.ConfigProto()
+        self._Model = load_model(self.ModelFile)              
+        self._Model._make_predict_function()
+        self._Session = tf.Session(config=tfConfig)
+        #self._Session.run()
+        self._Session.run(tf.global_variables_initializer())
+        self._Graph = tf.get_default_graph()
+        #self._Graph.finalize()
+        #set_session(self._Session)
 
 
 
     def worker(self, input_q, output_q):
-        # load the face mask detector model from disk
-        print("[INFO] loading face mask detector model...")
-        tfConfig = tf.ConfigProto()
-        self._Session = tf.Session(config=tfConfig)
-        self._Graph = tf.get_default_graph()
-        set_session(self._Session)
-        self._Model = load_model(self.ModelFile)        
-        while True:
+        print('Worker started with Canceld:'+ str(self.CancelEvent()))
+        while True and not self.CancelEvent():
             frame = input_q.get()
             # Check frame object is a 2-D array (video) or 1-D (webcam)
             if len(frame) == 2:
@@ -55,6 +62,7 @@ class DetectMask():
             else:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 output_q.put(self.Detect(frame_rgb, self._Net, self._Session, self._Graph, self._Model))
+        print('Exited worker')
 
     def Detect(self, frame, faceNet, tfSess, tfGraph, tfModel):  
         #resize for performance
@@ -108,7 +116,7 @@ class DetectMask():
                     # pass the face through the model to determine if the face
                     # has a mask or not
                     with tfGraph.as_default():
-                        set_session(tfSess)
+                        #set_session(tfSess)
                         (mask, withoutMask) = tfModel.predict(face)[0]
                     
                     # determine the class label and color we'll use to draw
