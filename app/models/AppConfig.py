@@ -4,5 +4,8 @@ class AppConfig(object):
     """
     def __init__(self):
         self.LoggingEnabled=False
-        self.QueueSize=2
-        self.NumWorkers=2
+        self.QueueSize=10
+        self.NumWorkers=1
+
+    def __str__(self):
+        return (f'Logging: {str(self.LoggingEnabled)}\nQueueSize:{str(self.QueueSize)}\nWorker count: {str(self.NumWorkers)}')

@@ -10,13 +10,14 @@ import imutils
 import os
 import signal
 
+_FINISH=False
+
 class DetectMask():
     def __init__(self,
                  pathFaceDetector='face_detector',
                  #model='mask_detector.model',
                  model='mask_detect.sv',
-                 confidence=0.5, 
-                 cancelation=None):
+                 confidence=0.5):
         if "app" in os.getcwd():
             self.cwd="."
         else:
@@ -24,7 +25,6 @@ class DetectMask():
         self.PathToFaceDetectorFolder = pathFaceDetector
         self.ModelFile = os.path.join(self.cwd, model)
         self.Confidence = confidence
-        self.CancelEvent=cancelation
         
         # load our serialized face detector model from disk
         print("[INFO] loading face detector model...")
@@ -37,6 +37,13 @@ class DetectMask():
             self._Net = cv2.dnn.readNet(prototxtPath, weightsPath)
         except Exception as ex:
             print(ex)
+
+
+    def worker(self, input_q, output_q):
+        def signal_handler(*args):
+            print("Hit Ctrl C .. Terminating worker!")    
+            global _FINISH
+            _FINISH = True
         # load the face mask detector model from disk
         print("[INFO] loading face mask detector model...")
         tfConfig = tf.ConfigProto()
@@ -48,12 +55,11 @@ class DetectMask():
         self._Graph = tf.get_default_graph()
         #self._Graph.finalize()
         #set_session(self._Session)
+        signal.signal(signal.SIGINT, signal_handler)
 
-
-
-    def worker(self, input_q, output_q):
-        print('Worker started with Canceld:'+ str(self.CancelEvent()))
-        while True and not self.CancelEvent():
+        print('Worker started')
+        global _FINISH
+        while not _FINISH:
             frame = input_q.get()
             # Check frame object is a 2-D array (video) or 1-D (webcam)
             if len(frame) == 2:
