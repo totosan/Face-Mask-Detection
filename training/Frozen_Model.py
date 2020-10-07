@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
 from tensorflow.keras.models import load_model
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 import tensorflow.contrib.tensorrt as trt
 
 
@@ -12,9 +14,34 @@ model_fname = 'mask_detector.model'
 
 
 def freeze_graph(graph, session, output, save_pb_dir='.', save_pb_name='frozen_model.pb', save_pb_as_text=False):
+    print("Start reading graph...")
     with graph.as_default():
         graphdef_inf = tf.graph_util.remove_training_nodes(
             graph.as_graph_def())
+    
+        print("Traversing nodes to rename them")
+        for node in graphdef_inf.node:
+            if node.op == 'RefSwitch':
+                node.op = 'Switch'
+                for index in xrange(len(node.input)):
+                    if 'moving_' in node.input[index]:
+                        node.input[index] = node.input[index] + '/read'
+            elif node.op == 'AssignSub':
+                node.op = 'Sub'
+            if 'use_locking' in node.attr: del node.attr['use_locking']
+            elif node.op == 'AssignAdd':
+                node.op = 'Add'
+                if 'use_locking' in node.attr: del node.attr['use_locking']
+                elif node.op == 'Assign':
+                    node.op = 'Identity'
+            if 'use_locking' in node.attr: del node.attr['use_locking']
+            if 'validate_shape' in node.attr: del node.attr['validate_shape']
+            if len(node.input) == 2:
+                # input0: ref: Should be from a Variable node. May be uninitialized.
+                # input1: value: The value to be assigned to the variable.
+                node.input[0] = node.input[1]
+                del node.input[1]
+        
         graphdef_frozen = tf.graph_util.convert_variables_to_constants(
             session, graphdef_inf, output)
         graph_io.write_graph(graphdef_frozen, save_pb_dir,
